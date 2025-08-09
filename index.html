@@ -157,42 +157,82 @@
         tbody.appendChild(tr);
       });
 
-      // Chart: single series of "% ahead (Marty positive, Winslow negative)"
-      const labels = data.map(r => r.date);
-      const series = data.map(r => {
-        const diff = r.coinMarketCap - r.bpMarketCap;
-        const denom = diff >= 0 ? r.bpMarketCap : r.coinMarketCap || 1;
-        return (diff / denom) * 100; // signed: >0 favors Marty, <0 favors Winslow
-      });
+      // Chart: signed "% ahead" (Marty positive, Winslow negative)
+const labels = data.map(r => r.date);
+const series = data.map(r => {
+  const diff = r.coinMarketCap - r.bpMarketCap;
+  const denom = diff >= 0 ? r.bpMarketCap : r.coinMarketCap || 1;
+  return (diff / denom) * 100; // signed percent
+});
 
-      const ctx = document.getElementById('chart');
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: '% ahead (Marty positive)',
-            data: series,
-            borderWidth: 2,
-            tension: 0.25,
-            pointRadius: 0,
-            borderColor: function(ctx){
-              const v = ctx.raw;
-              return v >= 0 ? getComputedStyle(document.documentElement).getPropertyValue('--marty').trim()
-                            : getComputedStyle(document.documentElement).getPropertyValue('--winslow').trim();
-            }
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: { y: { ticks: { callback: v => v + '%' } } },
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: c => c.parsed.y.toFixed(2) + '%' } }
-          }
+// make axis symmetric around 0 with a little headroom
+const maxAbs = Math.max(5, Math.ceil(Math.max(...series.map(Math.abs)) * 1.1));
+
+const martyColor   = getComputedStyle(document.documentElement).getPropertyValue('--marty').trim()   || '#184FF8';
+const winslowColor = getComputedStyle(document.documentElement).getPropertyValue('--winslow').trim() || '#007F01';
+
+// plugin to draw a bold zero line
+const zeroLine = {
+  id: 'zeroLine',
+  afterDraw(chart, args, opts) {
+    const {ctx, scales: {y}} = chart;
+    const yZero = y.getPixelForValue(0);
+    ctx.save();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(chart.chartArea.left, yZero);
+    ctx.lineTo(chart.chartArea.right, yZero);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+const ctx = document.getElementById('chart');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: '% ahead (Marty positive)',
+      data: series,
+      borderWidth: 2,
+      tension: 0.25,
+      pointRadius: 0,
+      // color the line by segment sign
+      segment: {
+        borderColor: ctx => {
+          const y = ctx.p0.parsed.y;
+          return y >= 0 ? martyColor : winslowColor;
         }
-      });
+      },
+      // optional: fill area to zero baseline (single neutral fill)
+      fill: { target: { value: 0 } },
+      backgroundColor: 'rgba(0,0,0,0.06)'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        suggestedMin: -maxAbs,
+        suggestedMax:  maxAbs,
+        ticks: { callback: v => v + '%' },
+        grid: { drawBorder: false }
+      },
+      x: { grid: { display: false } }
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
+      }
+    }
+  },
+  plugins: [zeroLine]
+});
     }
     run();
   </script>
