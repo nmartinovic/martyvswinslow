@@ -1,4 +1,17 @@
 [
-  { "date": "2025-08-01", "bpMarketCap": 100000000000, "coinMarketCap": 90000000000 },
-  { "date": "2025-08-02", "bpMarketCap": 90500000000,  "coinMarketCap": 91000000000 }
+  {
+    "date": "2025-08-01",
+    "bpMarketCap": 100000000000,
+    "coinMarketCap": 90000000000
+  },
+  {
+    "date": "2025-08-02",
+    "bpMarketCap": 90500000000,
+    "coinMarketCap": 91000000000
+  },
+  {
+    "date": "2025-08-09",
+    "bpMarketCap": 88078812449,
+    "coinMarketCap": 79789528716
+  }
 ]
