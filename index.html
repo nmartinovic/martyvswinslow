@@ -1,240 +1,377 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Marty vs Winslow</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-css-reset/dist/reset.min.css">
-  <style>
-    :root {
-      --fg:#0b1221; --muted:#6b7280; --card:#f8fafc;
-      --marty:#184FF8; --winslow:#007F01;
-    }
-    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-           color: var(--fg); background: #fff; line-height: 1.45; }
-    .wrap { max-width: 960px; margin: 0 auto; padding: 16px; }
-    header { margin: 4px 0 12px; }
-    h1 { font-size: 24px; letter-spacing: .5px; }
-    .grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
-    .card { background: var(--card); border-radius: 16px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-    .kpi { display: grid; grid-template-columns: 1fr; gap: 8px; }
-    .kpi .big { font-size: 28px; font-weight: 700; }
-    .sub { color: var(--muted); font-size: 14px; }
-    .winner { font-weight:700; }
-    .winner.marty { color: var(--marty); }
-    .winner.winslow { color: var(--winslow); }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }
-    .pill { padding: 3px 8px; border-radius: 999px; font-size: 12px; border: 1px solid #e5e7eb; }
-    .pill.marty { border-color: var(--marty); color: var(--marty); }
-    .pill.winslow { border-color: var(--winslow); color: var(--winslow); }
-    footer { color: var(--muted); font-size: 12px; margin: 18px 0 8px; }
-    @media (min-width:700px){ .grid{ grid-template-columns: 1.1fr 1.2fr; } .kpi { grid-template-columns: repeat(3,1fr);} h1{font-size:28px;} }
-    /* Give the chart a sensible height on mobile */
-    #chart { width: 100%; height: 260px; }
-    @media (min-width:700px){ #chart { height: 340px; } }
-  </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Marty vs Winslow</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-css-reset/dist/reset.min.css">
+    <style>
+        :root {
+            --fg: #0b1221;
+            --muted: #6b7280;
+            --card: #f8fafc;
+            --marty: #184FF8;
+            --winslow: #007F01;
+        }
+
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+            color: var(--fg);
+            background: #fff;
+            line-height: 1.45;
+        }
+
+        .wrap {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        header {
+            margin: 4px 0 12px;
+        }
+
+        h1 {
+            font-size: 24px;
+            letter-spacing: .5px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: 1fr;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+        }
+
+        .kpi {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .kpi .big {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .sub {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .winner {
+            font-weight: 700;
+        }
+
+        .winner.marty {
+            color: var(--marty);
+        }
+
+        .winner.winslow {
+            color: var(--winslow);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+        }
+
+        .pill {
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .pill.marty {
+            border-color: var(--marty);
+            color: var(--marty);
+        }
+
+        .pill.winslow {
+            border-color: var(--winslow);
+            color: var(--winslow);
+        }
+
+        footer {
+            color: var(--muted);
+            font-size: 12px;
+            margin: 18px 0 8px;
+        }
+
+        @media (min-width:700px) {
+            .grid {
+                grid-template-columns: 1.1fr 1.2fr;
+            }
+
+            .kpi {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+        }
+
+        /* Give the chart a sensible height on mobile */
+        #chart {
+            width: 100%;
+            height: 260px;
+        }
+
+        @media (min-width:700px) {
+            #chart {
+                height: 340px;
+            }
+        }
+    </style>
 </head>
+
 <body>
-  <div class="wrap">
-    <header>
-      <h1>Marty vs Winslow</h1>
-      <div class="sub">COIN (Coinbase) vs BP market capitalization • Ends May 1, 2030</div>
-    </header>
+    <div class="wrap">
+        <header>
+            <h1>Marty vs Winslow</h1>
+            <div class="sub">COIN (Coinbase) vs BP market capitalization • Ends May 1, 2030</div>
+        </header>
 
-    <section class="grid">
-      <div class="card">
-        <div class="kpi">
-          <div>
-            <div class="sub">Days left</div>
-            <div class="big" id="daysLeft">—</div>
-          </div>
-          <div>
-            <div class="sub">Currently winning</div>
-            <div class="big winner" id="winner">—</div>
-          </div>
-          <div>
-            <div class="sub">% ahead</div>
-            <div class="big" id="pctAhead">—</div>
-          </div>
-        </div>
-        <div class="sub" style="margin-top:8px;">
-          % ahead = (leader − loser) / loser
-        </div>
-      </div>
+        <section class="grid">
+            <div class="card">
+                <div class="kpi">
+                    <div>
+                        <div class="sub">Days left</div>
+                        <div class="big" id="daysLeft">—</div>
+                    </div>
+                    <div>
+                        <div class="sub">Currently winning</div>
+                        <div class="big winner" id="winner">—</div>
+                    </div>
+                    <div>
+                        <div class="sub">% ahead</div>
+                        <div class="big" id="pctAhead">—</div>
+                    </div>
+                </div>
+                <div class="sub" style="margin-top:8px;">
+                    % ahead = (leader − loser) / loser
+                </div>
+            </div>
 
-      <div class="card">
-        <canvas id="chart" aria-label="% ahead over time" role="img"></canvas>
-      </div>
-    </section>
+            <div class="card">
+                <canvas id="chart" aria-label="% ahead over time" role="img"></canvas>
+            </div>
+        </section>
 
-    <section class="card" style="margin-top:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;">
-        <strong>Historical log</strong>
-        <div class="sub" id="lastUpdated">Updated —</div>
-      </div>
-      <div style="overflow-x:auto;">
-        <table id="logTable">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>BP Market Cap</th>
-              <th>COIN Market Cap</th>
-              <th>Leader</th>
-              <th>% Ahead</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+        <section class="card" style="margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <strong>Historical log</strong>
+                <div class="sub" id="lastUpdated">Updated —</div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table id="logTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>BP Market Cap</th>
+                            <th>COIN Market Cap</th>
+                            <th>Leader</th>
+                            <th>% Ahead</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
 
-    <footer>
-      Maintenance‑free: data updates nightly via GitHub Actions.
-    </footer>
-  </div>
+        <footer>
+            Maintenance‑free: data updates nightly via GitHub Actions.
+        </footer>
+    </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script>
-    const END_DATE = new Date('2030-05-01T23:59:59Z');
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
 
-    const fmtMoney = n =>
-      n>=1e12? (n/1e12).toFixed(2)+'T' :
-      n>=1e9?  (n/1e9 ).toFixed(2)+'B' :
-      n>=1e6?  (n/1e6 ).toFixed(2)+'M' : n.toLocaleString();
+    <script>
+        const END_DATE = new Date('2030-05-01T23:59:59Z');
 
-    const fmtPct = x => (x*100).toFixed(2) + '%';
+        const fmtMoney = n =>
+            n >= 1e12 ? (n / 1e12).toFixed(2) + 'T' :
+                n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' :
+                    n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n.toLocaleString();
 
-    const daysLeft = () => Math.max(0, Math.ceil((END_DATE - new Date()) / 86400000));
+        const fmtPct = x => (x * 100).toFixed(2) + '%';
 
-    async function run() {
-      document.getElementById('daysLeft').textContent = daysLeft();
+        const daysLeft = () => Math.max(0, Math.ceil((END_DATE - new Date()) / 86400000));
 
-      const res = await fetch('./data/history.json', { cache: 'no-cache' });
-      const data = await res.json();
-      if (!Array.isArray(data) || !data.length) return;
+        async function run() {
+            document.getElementById('daysLeft').textContent = daysLeft();
 
-      const last = data[data.length - 1];
-      const bp = +last.bpMarketCap;
-      const coin = +last.coinMarketCap;
+            const res = await fetch('./data/history.json', { cache: 'no-cache' });
+            const data = await res.json();
+            if (!Array.isArray(data) || !data.length) return;
 
-      // Determine leader and % ahead using (leader - loser) / loser
-      let leader, ahead;
-      if (coin > bp) { leader = 'Marty (COIN)'; ahead = (coin - bp) / bp; }
-      else if (bp > coin) { leader = 'Winslow (BP)'; ahead = (bp - coin) / coin; }
-      else { leader = 'Tied'; ahead = 0; }
+            const last = data[data.length - 1];
+            const bp = +last.bpMarketCap;
+            const coin = +last.coinMarketCap;
 
-      const w = document.getElementById('winner');
-      w.textContent = leader;
-      w.className = 'big winner ' + (leader.startsWith('Marty') ? 'marty' : leader.startsWith('Winslow') ? 'winslow' : '');
+            // Determine leader and % ahead using (leader - loser) / loser
+            let leader, ahead;
+            if (coin > bp) { leader = 'Marty (COIN)'; ahead = (coin - bp) / bp; }
+            else if (bp > coin) { leader = 'Winslow (BP)'; ahead = (bp - coin) / coin; }
+            else { leader = 'Tied'; ahead = 0; }
 
-      document.getElementById('pctAhead').textContent = fmtPct(ahead);
-      document.getElementById('lastUpdated').textContent = 'Updated ' + new Date(last.date).toLocaleString();
+            const w = document.getElementById('winner');
+            w.textContent = leader;
+            w.className = 'big winner ' + (leader.startsWith('Marty') ? 'marty' : leader.startsWith('Winslow') ? 'winslow' : '');
 
-      // Build table (newest first)
-      const tbody = document.querySelector('#logTable tbody');
-      tbody.innerHTML = '';
-      data.slice().reverse().forEach(row => {
-        const d = new Date(row.date).toISOString().slice(0,10);
-        const leaderRow = row.coinMarketCap > row.bpMarketCap ? 'Marty' :
-                          row.coinMarketCap < row.bpMarketCap ? 'Winslow' : 'Tie';
+            document.getElementById('pctAhead').textContent = fmtPct(ahead);
+            document.getElementById('lastUpdated').textContent = 'Updated ' + new Date(last.date).toLocaleString();
 
-        const pct = leaderRow === 'Marty'
-          ? (row.coinMarketCap - row.bpMarketCap) / row.bpMarketCap
-          : leaderRow === 'Winslow'
-            ? (row.bpMarketCap - row.coinMarketCap) / row.coinMarketCap
-            : 0;
+            // Build table (newest first)
+            const tbody = document.querySelector('#logTable tbody');
+            tbody.innerHTML = '';
+            data.slice().reverse().forEach(row => {
+                const d = new Date(row.date).toISOString().slice(0, 10);
+                const leaderRow = row.coinMarketCap > row.bpMarketCap ? 'Marty' :
+                    row.coinMarketCap < row.bpMarketCap ? 'Winslow' : 'Tie';
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
+                const pct = leaderRow === 'Marty'
+                    ? (row.coinMarketCap - row.bpMarketCap) / row.bpMarketCap
+                    : leaderRow === 'Winslow'
+                        ? (row.bpMarketCap - row.coinMarketCap) / row.coinMarketCap
+                        : 0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
           <td>${d}</td>
           <td>${fmtMoney(row.bpMarketCap)}</td>
           <td>${fmtMoney(row.coinMarketCap)}</td>
           <td>${leaderRow}</td>
-          <td><span class="pill ${leaderRow==='Marty'?'marty':leaderRow==='Winslow'?'winslow':''}">${fmtPct(pct)}</span></td>
+          <td><span class="pill ${leaderRow === 'Marty' ? 'marty' : leaderRow === 'Winslow' ? 'winslow' : ''}">${fmtPct(pct)}</span></td>
         `;
-        tbody.appendChild(tr);
-      });
+                tbody.appendChild(tr);
+            });
 
-      // Chart: signed "% ahead" (Marty positive, Winslow negative)
-const labels = data.map(r => r.date);
-const series = data.map(r => {
-  const diff = r.coinMarketCap - r.bpMarketCap;
-  const denom = diff >= 0 ? r.bpMarketCap : r.coinMarketCap || 1;
-  return (diff / denom) * 100; // signed percent
-});
+            // Chart: signed "% ahead" (Marty positive, Winslow negative)
+            const raw = data.map(r => {
+                const diff = r.coinMarketCap - r.bpMarketCap;
+                const denom = diff >= 0 ? r.bpMarketCap : r.coinMarketCap || 1;
+                return { x: new Date(r.date), y: (diff / denom) * 100 }; // signed %
+            });
 
-// make axis symmetric around 0 with a little headroom
-const maxAbs = Math.max(5, Math.ceil(Math.max(...series.map(Math.abs)) * 1.1));
+            // Insert zero-crossing points so fills split exactly at 0
+            const pts = [];
+            for (let i = 0; i < raw.length - 1; i++) {
+                const p0 = raw[i], p1 = raw[i + 1];
+                pts.push(p0);
+                if (p0.y === 0) continue;
+                if (p0.y * p1.y < 0) {
+                    // linear interpolation t in [0,1] where y=0 between p0 & p1
+                    const t = p0.y / (p0.y - p1.y);
+                    const x0 = p0.x.getTime(), x1 = p1.x.getTime();
+                    const xCross = new Date(x0 + t * (x1 - x0));
+                    pts.push({ x: xCross, y: 0 });
+                }
+            }
+            if (raw.length) pts.push(raw[raw.length - 1]);
 
-const martyColor   = getComputedStyle(document.documentElement).getPropertyValue('--marty').trim()   || '#184FF8';
-const winslowColor = getComputedStyle(document.documentElement).getPropertyValue('--winslow').trim() || '#007F01';
+            // Build separate datasets for above/below zero
+            const martyBlue = '#184FF8';
+            const winslowGreen = '#007F01';
+            const martyFill = 'rgba(24, 79, 248, 0.15)';
+            const winslowFill = 'rgba(0, 127, 1, 0.15)';
 
-// plugin to draw a bold zero line
-const zeroLine = {
-  id: 'zeroLine',
-  afterDraw(chart, args, opts) {
-    const {ctx, scales: {y}} = chart;
-    const yZero = y.getPixelForValue(0);
-    ctx.save();
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(chart.chartArea.left, yZero);
-    ctx.lineTo(chart.chartArea.right, yZero);
-    ctx.stroke();
-    ctx.restore();
-  }
-};
+            const martyData = pts.map(p => (p.y >= 0 ? { x: p.x, y: p.y } : { x: p.x, y: null }));
+            const winslowData = pts.map(p => (p.y <= 0 ? { x: p.x, y: p.y } : { x: p.x, y: null }));
 
-const ctx = document.getElementById('chart');
-new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels,
-    datasets: [{
-      label: '% ahead (Marty positive)',
-      data: series,
-      borderWidth: 2,
-      tension: 0.25,
-      pointRadius: 0,
-      // color the line by segment sign
-      segment: {
-        borderColor: ctx => {
-          const y = ctx.p0.parsed.y;
-          return y >= 0 ? martyColor : winslowColor;
+            const maxAbs = Math.max(5, Math.ceil(Math.max(...raw.map(p => Math.abs(p.y))) * 1.1));
+
+            const zeroLine = {
+                id: 'zeroLine',
+                afterDraw(chart) {
+                    const { ctx, scales: { y } } = chart;
+                    const yZero = y.getPixelForValue(0);
+                    ctx.save();
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(chart.chartArea.left, yZero);
+                    ctx.lineTo(chart.chartArea.right, yZero);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            };
+
+            const ctx = document.getElementById('chart');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Marty (% ahead, positive)',
+                            data: martyData,
+                            borderColor: martyBlue,
+                            backgroundColor: martyFill,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.25,
+                            fill: { target: { value: 0 } },
+                            spanGaps: false
+                        },
+                        {
+                            label: 'Winslow (% ahead, negative)',
+                            data: winslowData,
+                            borderColor: winslowGreen,
+                            backgroundColor: winslowFill,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.25,
+                            fill: { target: { value: 0 } },
+                            spanGaps: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    parsing: false,              // we’re supplying {x,y} objects already
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day' }, grid: { display: false } },
+                        y: {
+                            suggestedMin: -maxAbs,
+                            suggestedMax: maxAbs,
+                            ticks: { callback: v => v + '%' },
+                            grid: { drawBorder: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
+                        }
+                    }
+                },
+                plugins: [zeroLine]
+            });
+
         }
-      },
-      // optional: fill area to zero baseline (single neutral fill)
-      fill: { target: { value: 0 } },
-      backgroundColor: 'rgba(0,0,0,0.06)'
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        suggestedMin: -maxAbs,
-        suggestedMax:  maxAbs,
-        ticks: { callback: v => v + '%' },
-        grid: { drawBorder: false }
-      },
-      x: { grid: { display: false } }
-    },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
-      }
-    }
-  },
-  plugins: [zeroLine]
-});
-    }
-    run();
-  </script>
+        run();
+    </script>
 </body>
+
 </html>
