@@ -77,18 +77,16 @@
       const res = await fetch('./data/history.json', { cache: 'no-cache' });
       let rows = await res.json();
 
-      // guard + clean
+      // Clean + sort ascending by date
       rows = (Array.isArray(rows)? rows: []).filter(r =>
         r && r.date && isFinite(+r.bpMarketCap) && isFinite(+r.coinMarketCap)
-      );
+      ).sort((a,b)=> Date.parse(a.date) - Date.parse(b.date));
+
       if (!rows.length) return;
 
-      // sort ascending by date to ensure proper time series
-      rows.sort((a,b)=> new Date(a.date) - new Date(b.date));
-
+      // KPIs
       const last = rows[rows.length-1];
       const bp = +last.bpMarketCap, coin = +last.coinMarketCap;
-
       let leader, ahead;
       if (coin > bp) { leader = 'Marty (COIN)'; ahead = (coin - bp) / bp; }
       else if (bp > coin) { leader = 'Winslow (BP)'; ahead = (bp - coin) / coin; }
@@ -97,11 +95,10 @@
       const w = document.getElementById('winner');
       w.textContent = leader;
       w.className = 'big winner ' + (leader.startsWith('Marty') ? 'marty' : leader.startsWith('Winslow') ? 'winslow' : '');
-
       document.getElementById('pctAhead').textContent = fmtPct(ahead);
       document.getElementById('lastUpdated').textContent = 'Updated ' + new Date(last.date).toLocaleString();
 
-      // table (newest first)
+      // Table (newest first)
       const tbody = document.querySelector('#logTable tbody');
       tbody.innerHTML = '';
       rows.slice().reverse().forEach(r=>{
@@ -117,21 +114,22 @@
         tbody.appendChild(tr);
       });
 
-      // build signed % series
+      // ---- Chart data (signed %, UTC timestamps) ----
       const raw = rows.map(r=>{
-        const diff = r.coinMarketCap - r.bpMarketCap;
+        const diff  = r.coinMarketCap - r.bpMarketCap;
         const denom = diff >= 0 ? r.bpMarketCap : r.coinMarketCap || 1;
-        return { x: new Date(r.date), y: (diff/denom)*100 };
+        const x = Date.parse(r.date + 'T00:00:00Z'); // numeric timestamp
+        return { x, y: (diff/denom)*100 };
       });
 
-      // insert exact zero-cross points
+      // Insert exact zero-crossing points
       const pts = [];
       for (let i=0; i<raw.length-1; i++){
         const p0 = raw[i], p1 = raw[i+1];
         pts.push(p0);
         if (p0.y !== 0 && p0.y * p1.y < 0){
-          const t = p0.y / (p0.y - p1.y);
-          const xCross = new Date(p0.x.getTime() + t*(p1.x - p0.x));
+          const t = p0.y / (p0.y - p1.y);                 // 0..1
+          const xCross = Math.round(p0.x + t*(p1.x - p0.x));
           pts.push({ x: xCross, y: 0 });
         }
       }
@@ -160,8 +158,8 @@
         type:'line',
         data:{
           datasets:[
-            { label:'Marty (+)',   data:martyData,   borderColor:getCSS('--marty'),   backgroundColor:'rgba(24,79,248,0.15)',  borderWidth:2, pointRadius:0, tension:0.25, fill:{target:{value:0}}, spanGaps:false },
-            { label:'Winslow (−)', data:winslowData, borderColor:getCSS('--winslow'), backgroundColor:'rgba(0,127,1,0.15)',    borderWidth:2, pointRadius:0, tension:0.25, fill:{target:{value:0}}, spanGaps:false }
+            { label:'Marty (+)',   data:martyData,   borderColor:getCSS('--marty'),   backgroundColor:'rgba(24,79,248,0.15)', borderWidth:2, pointRadius:0, tension:0.25, fill:{target:{value:0}}, spanGaps:false },
+            { label:'Winslow (−)', data:winslowData, borderColor:getCSS('--winslow'), backgroundColor:'rgba(0,127,1,0.15)',   borderWidth:2, pointRadius:0, tension:0.25, fill:{target:{value:0}}, spanGaps:false }
           ]
         },
         options:{
