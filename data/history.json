@@ -1,22 +1,507 @@
 [
   {
+    "date": "2025-05-01",
+    "bpMarketCap": 74520000000,
+    "coinMarketCap": 50469000000
+  },
+  {
+    "date": "2025-05-02",
+    "bpMarketCap": 75162000000,
+    "coinMarketCap": 51380000000
+  },
+  {
+    "date": "2025-05-03",
+    "bpMarketCap": 75162000000,
+    "coinMarketCap": 51380000000
+  },
+  {
+    "date": "2025-05-04",
+    "bpMarketCap": 75162000000,
+    "coinMarketCap": 51380000000
+  },
+  {
+    "date": "2025-05-05",
+    "bpMarketCap": 77995000000,
+    "coinMarketCap": 49994000000
+  },
+  {
+    "date": "2025-05-06",
+    "bpMarketCap": 75910000000,
+    "coinMarketCap": 49364000000
+  },
+  {
+    "date": "2025-05-07",
+    "bpMarketCap": 74748100000,
+    "coinMarketCap": 50064800000
+  },
+  {
+    "date": "2025-05-08",
+    "bpMarketCap": 75970400000,
+    "coinMarketCap": 52596500000
+  },
+  {
+    "date": "2025-05-09",
+    "bpMarketCap": 79106000000,
+    "coinMarketCap": 50767700000
+  },
+  {
+    "date": "2025-05-10",
+    "bpMarketCap": 79106000000,
+    "coinMarketCap": 50767700000
+  },
+  {
+    "date": "2025-05-11",
+    "bpMarketCap": 79106000000,
+    "coinMarketCap": 50767700000
+  },
+  {
+    "date": "2025-05-12",
+    "bpMarketCap": 80222000000,
+    "coinMarketCap": 52779900000
+  },
+  {
+    "date": "2025-05-13",
+    "bpMarketCap": 81205000000,
+    "coinMarketCap": 65434000000
+  },
+  {
+    "date": "2025-05-14",
+    "bpMarketCap": 80674000000,
+    "coinMarketCap": 67092000000
+  },
+  {
+    "date": "2025-05-15",
+    "bpMarketCap": 80063000000,
+    "coinMarketCap": 62260000000
+  },
+  {
+    "date": "2025-05-16",
+    "bpMarketCap": 79079000000,
+    "coinMarketCap": 67869000000
+  },
+  {
+    "date": "2025-05-17",
+    "bpMarketCap": 79079000000,
+    "coinMarketCap": 67869000000
+  },
+  {
+    "date": "2025-05-18",
+    "bpMarketCap": 79079000000,
+    "coinMarketCap": 67869000000
+  },
+  {
+    "date": "2025-05-19",
+    "bpMarketCap": 78123000000,
+    "coinMarketCap": 67240000000
+  },
+  {
+    "date": "2025-05-20",
+    "bpMarketCap": 77591000000,
+    "coinMarketCap": 66575000000
+  },
+  {
+    "date": "2025-05-21",
+    "bpMarketCap": 76741000000,
+    "coinMarketCap": 65966000000
+  },
+  {
+    "date": "2025-05-22",
+    "bpMarketCap": 76901000000,
+    "coinMarketCap": 69267000000
+  },
+  {
+    "date": "2025-05-23",
+    "bpMarketCap": 77299000000,
+    "coinMarketCap": 67028000000
+  },
+  {
+    "date": "2025-05-24",
+    "bpMarketCap": 77299000000,
+    "coinMarketCap": 67028000000
+  },
+  {
+    "date": "2025-05-25",
+    "bpMarketCap": 77299000000,
+    "coinMarketCap": 67028000000
+  },
+  {
+    "date": "2025-05-26",
+    "bpMarketCap": 77299000000,
+    "coinMarketCap": 67028000000
+  },
+  {
+    "date": "2025-05-27",
+    "bpMarketCap": 77459000000,
+    "coinMarketCap": 67827000000
+  },
+  {
+    "date": "2025-05-28",
+    "bpMarketCap": 76901000000,
+    "coinMarketCap": 64769000000
+  },
+  {
+    "date": "2025-05-29",
+    "bpMarketCap": 77512000000,
+    "coinMarketCap": 63381000000
+  },
+  {
+    "date": "2025-05-30",
+    "bpMarketCap": 77326000000,
+    "coinMarketCap": 62790000000
+  },
+  {
+    "date": "2025-05-31",
+    "bpMarketCap": 77326000000,
+    "coinMarketCap": 62790000000
+  },
+  {
+    "date": "2025-06-01",
+    "bpMarketCap": 77326000000,
+    "coinMarketCap": 62790000000
+  },
+  {
+    "date": "2025-06-02",
+    "bpMarketCap": 78601000000,
+    "coinMarketCap": 62841000000
+  },
+  {
+    "date": "2025-06-03",
+    "bpMarketCap": 78548000000,
+    "coinMarketCap": 65946000000
+  },
+  {
+    "date": "2025-06-04",
+    "bpMarketCap": 76847000000,
+    "coinMarketCap": 65204000000
+  },
+  {
+    "date": "2025-06-05",
+    "bpMarketCap": 77193000000,
+    "coinMarketCap": 62207000000
+  },
+  {
+    "date": "2025-06-06",
+    "bpMarketCap": 77831000000,
+    "coinMarketCap": 64000000000
+  },
+  {
+    "date": "2025-06-07",
+    "bpMarketCap": 77831000000,
+    "coinMarketCap": 64000000000
+  },
+  {
+    "date": "2025-06-08",
+    "bpMarketCap": 77831000000,
+    "coinMarketCap": 64000000000
+  },
+  {
+    "date": "2025-06-09",
+    "bpMarketCap": 78282000000,
+    "coinMarketCap": 65365000000
+  },
+  {
+    "date": "2025-06-10",
+    "bpMarketCap": 80328000000,
+    "coinMarketCap": 64934000000
+  },
+  {
+    "date": "2025-06-11",
+    "bpMarketCap": 81870000000,
+    "coinMarketCap": 63849000000
+  },
+  {
+    "date": "2025-06-12",
+    "bpMarketCap": 82162000000,
+    "coinMarketCap": 61397000000
+  },
+  {
+    "date": "2025-06-13",
+    "bpMarketCap": 84288000000,
+    "coinMarketCap": 61819000000
+  },
+  {
+    "date": "2025-06-14",
+    "bpMarketCap": 84288000000,
+    "coinMarketCap": 61819000000
+  },
+  {
+    "date": "2025-06-15",
+    "bpMarketCap": 84288000000,
+    "coinMarketCap": 61819000000
+  },
+  {
+    "date": "2025-06-16",
+    "bpMarketCap": 82800000000,
+    "coinMarketCap": 66623000000
+  },
+  {
+    "date": "2025-06-17",
+    "bpMarketCap": 83916000000,
+    "coinMarketCap": 64657000000
+  },
+  {
+    "date": "2025-06-18",
+    "bpMarketCap": 82746000000,
+    "coinMarketCap": 75212000000
+  },
+  {
+    "date": "2025-06-19",
+    "bpMarketCap": 82746000000,
+    "coinMarketCap": 75212000000
+  },
+  {
+    "date": "2025-06-20",
+    "bpMarketCap": 83039000000,
+    "coinMarketCap": 78597000000
+  },
+  {
+    "date": "2025-06-21",
+    "bpMarketCap": 83039000000,
+    "coinMarketCap": 78597000000
+  },
+  {
+    "date": "2025-06-22",
+    "bpMarketCap": 83039000000,
+    "coinMarketCap": 78597000000
+  },
+  {
+    "date": "2025-06-23",
+    "bpMarketCap": 80568000000,
+    "coinMarketCap": 78345000000
+  },
+  {
+    "date": "2025-06-24",
+    "bpMarketCap": 79265000000,
+    "coinMarketCap": 87827000000
+  },
+  {
+    "date": "2025-06-25",
+    "bpMarketCap": 80568000000,
+    "coinMarketCap": 90514000000
+  },
+  {
+    "date": "2025-06-26",
+    "bpMarketCap": 80488000000,
+    "coinMarketCap": 95532000000
+  },
+  {
+    "date": "2025-06-27",
+    "bpMarketCap": 80621000000,
+    "coinMarketCap": 89986000000
+  },
+  {
+    "date": "2025-06-28",
+    "bpMarketCap": 80621000000,
+    "coinMarketCap": 89986000000
+  },
+  {
+    "date": "2025-06-29",
+    "bpMarketCap": 80621000000,
+    "coinMarketCap": 89986000000
+  },
+  {
+    "date": "2025-06-30",
+    "bpMarketCap": 79531000000,
+    "coinMarketCap": 89249000000
+  },
+  {
+    "date": "2025-07-01",
+    "bpMarketCap": 81046000000,
+    "coinMarketCap": 85410000000
+  },
+  {
+    "date": "2025-07-02",
+    "bpMarketCap": 83172000000,
+    "coinMarketCap": 90280000000
+  },
+  {
+    "date": "2025-07-03",
+    "bpMarketCap": 82188000000,
+    "coinMarketCap": 90624000000
+  },
+  {
+    "date": "2025-07-04",
+    "bpMarketCap": 82188000000,
+    "coinMarketCap": 90624000000
+  },
+  {
+    "date": "2025-07-05",
+    "bpMarketCap": 82188000000,
+    "coinMarketCap": 90624000000
+  },
+  {
+    "date": "2025-07-06",
+    "bpMarketCap": 82188000000,
+    "coinMarketCap": 90624000000
+  },
+  {
+    "date": "2025-07-07",
+    "bpMarketCap": 80382000000,
+    "coinMarketCap": 90955000000
+  },
+  {
+    "date": "2025-07-08",
+    "bpMarketCap": 83092000000,
+    "coinMarketCap": 90374000000
+  },
+  {
+    "date": "2025-07-09",
+    "bpMarketCap": 83092000000,
+    "coinMarketCap": 95221000000
+  },
+  {
+    "date": "2025-07-10",
+    "bpMarketCap": 83756000000,
+    "coinMarketCap": 99070000000
+  },
+  {
+    "date": "2025-07-11",
+    "bpMarketCap": 86732000000,
+    "coinMarketCap": 98586000000
+  },
+  {
+    "date": "2025-07-12",
+    "bpMarketCap": 86732000000,
+    "coinMarketCap": 98586000000
+  },
+  {
+    "date": "2025-07-13",
+    "bpMarketCap": 86732000000,
+    "coinMarketCap": 98586000000
+  },
+  {
+    "date": "2025-07-14",
+    "bpMarketCap": 85297000000,
+    "coinMarketCap": 100356000000
+  },
+  {
+    "date": "2025-07-15",
+    "bpMarketCap": 84660000000,
+    "coinMarketCap": 98831000000
+  },
+  {
+    "date": "2025-07-16",
+    "bpMarketCap": 84819000000,
+    "coinMarketCap": 101424000000
+  },
+  {
+    "date": "2025-07-17",
+    "bpMarketCap": 85271000000,
+    "coinMarketCap": 104620000000
+  },
+  {
+    "date": "2025-07-18",
+    "bpMarketCap": 85005000000,
+    "coinMarketCap": 106920000000
+  },
+  {
+    "date": "2025-07-19",
+    "bpMarketCap": 85005000000,
+    "coinMarketCap": 106920000000
+  },
+  {
+    "date": "2025-07-20",
+    "bpMarketCap": 85005000000,
+    "coinMarketCap": 106920000000
+  },
+  {
+    "date": "2025-07-21",
+    "bpMarketCap": 85643000000,
+    "coinMarketCap": 105354000000
+  },
+  {
+    "date": "2025-07-22",
+    "bpMarketCap": 86413000000,
+    "coinMarketCap": 103013000000
+  },
+  {
+    "date": "2025-07-23",
+    "bpMarketCap": 86918000000,
+    "coinMarketCap": 101324000000
+  },
+  {
+    "date": "2025-07-24",
+    "bpMarketCap": 85377000000,
+    "coinMarketCap": 101041000000
+  },
+  {
+    "date": "2025-07-25",
+    "bpMarketCap": 85563000000,
+    "coinMarketCap": 99758000000
+  },
+  {
+    "date": "2025-07-26",
+    "bpMarketCap": 85563000000,
+    "coinMarketCap": 99758000000
+  },
+  {
+    "date": "2025-07-27",
+    "bpMarketCap": 85563000000,
+    "coinMarketCap": 99758000000
+  },
+  {
+    "date": "2025-07-28",
+    "bpMarketCap": 86812000000,
+    "coinMarketCap": 96658000000
+  },
+  {
+    "date": "2025-07-29",
+    "bpMarketCap": 87583000000,
+    "coinMarketCap": 94608000000
+  },
+  {
+    "date": "2025-07-30",
+    "bpMarketCap": 85696000000,
+    "coinMarketCap": 96146000000
+  },
+  {
+    "date": "2025-07-31",
+    "bpMarketCap": 85390000000,
+    "coinMarketCap": 96177000000
+  },
+  {
     "date": "2025-08-01",
-    "bpMarketCap": 100000000000,
-    "coinMarketCap": 90000000000
+    "bpMarketCap": 84407000000,
+    "coinMarketCap": 80184000000
   },
   {
     "date": "2025-08-02",
-    "bpMarketCap": 90500000000,
-    "coinMarketCap": 91000000000
+    "bpMarketCap": 84407000000,
+    "coinMarketCap": 80184000000
+  },
+  {
+    "date": "2025-08-03",
+    "bpMarketCap": 84407000000,
+    "coinMarketCap": 80184000000
+  },
+  {
+    "date": "2025-08-04",
+    "bpMarketCap": 86334000000,
+    "coinMarketCap": 81039000000
+  },
+  {
+    "date": "2025-08-05",
+    "bpMarketCap": 89283000000,
+    "coinMarketCap": 75900000000
+  },
+  {
+    "date": "2025-08-06",
+    "bpMarketCap": 90027000000,
+    "coinMarketCap": 77323000000
+  },
+  {
+    "date": "2025-08-07",
+    "bpMarketCap": 90851000000,
+    "coinMarketCap": 79160000000
+  },
+  {
+    "date": "2025-08-08",
+    "bpMarketCap": 90718000000,
+    "coinMarketCap": 79096000000
   },
   {
     "date": "2025-08-09",
-    "bpMarketCap": 88078812449,
-    "coinMarketCap": 79789528716
-  },
-  {
-    "date": "2025-08-10",
-    "bpMarketCap": 88078812449,
-    "coinMarketCap": 79789528716
+    "bpMarketCap": 90718000000,
+    "coinMarketCap": 79096000000
   }
 ]
