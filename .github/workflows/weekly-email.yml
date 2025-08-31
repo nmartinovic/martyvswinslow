@@ -9,7 +9,7 @@ jobs:
   email:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # commit the chart PNG
+      contents: write     # commit the chart PNG so Pages can serve it
     steps:
       - uses: actions/checkout@v4
 
@@ -23,14 +23,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests matplotlib numpy
 
-      - name: Generate chart, commit if changed, and send email
+      - name: Generate chart and send email
         env:
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           REPORT_FROM_EMAIL: ${{ secrets.REPORT_FROM_EMAIL }}
           # One or many recipients (comma/newline separated); or use REPORT_TO_EMAIL instead
           REPORT_TO_EMAILS: ${{ secrets.REPORT_TO_EMAILS }}
           REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
-          # Optional (if you want the img src to use Pages domain instead of raw.githubusercontent)
+          # Optional explicit Pages URL; otherwise script derives https://<owner>.github.io/<repo>
           SITE_URL: ${{ secrets.SITE_URL }}
+          # Provided by Actions automatically; used to build URLs if SITE_URL not set
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python scripts/email_report.py

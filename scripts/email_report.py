@@ -3,7 +3,7 @@ import base64, datetime as dt, io, json, math, os, sys, subprocess
 from pathlib import Path
 import requests
 
-# Optional libs for chart
+# Optional chart libs
 try:
     import numpy as np
     import matplotlib
@@ -21,8 +21,8 @@ CHART_PATH = ROOT / "images" / "weekly-chart.png"
 BREVO_API_KEY   = os.environ.get("BREVO_API_KEY", "")
 FROM_EMAIL      = os.environ.get("REPORT_FROM_EMAIL", "")
 TO_EMAILS_RAW   = os.environ.get("REPORT_TO_EMAILS", os.environ.get("REPORT_TO_EMAIL", "")).strip()
-GITHUB_REPO     = os.environ.get("GITHUB_REPOSITORY", "")            # owner/repo
-SITE_URL        = os.environ.get("SITE_URL", "").strip().rstrip("/") # optional Pages URL
+SITE_URL        = os.environ.get("SITE_URL", "").strip().rstrip("/")  # optional override
+GITHUB_REPO     = os.environ.get("GITHUB_REPOSITORY", "")             # owner/repo, provided by Actions
 
 def days_left(end_date=dt.date(2030,5,1)) -> int:
     return max(0, (end_date - dt.date.today()).days)
@@ -46,18 +46,15 @@ def clean_rows(history):
     return rows
 
 def signed_pct(row) -> float:
-    """Signed advantage (%): + = Marty (COIN vs BP with denom=BP); − = Winslow (BP vs COIN with denom=COIN)."""
-    bp = float(row["bpMarketCap"])
-    coin = float(row["coinMarketCap"])
+    """Signed advantage (%): + = Marty (COIN vs BP denom=BP); − = Winslow (BP vs COIN denom=COIN)."""
+    bp = float(row["bpMarketCap"]); coin = float(row["coinMarketCap"])
     diff = coin - bp
-    if diff == 0 or bp == 0 or coin == 0:
-        return 0.0
+    if diff == 0 or bp == 0 or coin == 0: return 0.0
     denom = bp if diff >= 0 else coin
     return diff / denom
 
 def leader_and_ahead(row):
-    bp = float(row["bpMarketCap"])
-    coin = float(row["coinMarketCap"])
+    bp = float(row["bpMarketCap"]); coin = float(row["coinMarketCap"])
     if coin > bp: return "Marty (COIN)", (coin - bp)/bp
     if bp > coin: return "Winslow (BP)", (bp - coin)/coin
     return "Tied", 0.0
@@ -104,11 +101,8 @@ def make_chart_png(rows, save_path: Path):
     fig.savefig(save_path, dpi=160)
     plt.close(fig)
 
-def git_run(*args, check=True):
+def git(*args, check=True):
     return subprocess.run(list(args), check=check, capture_output=True, text=True)
-
-def current_sha():
-    return git_run("git","rev-parse","HEAD").stdout.strip()
 
 def commit_chart_if_changed():
     subprocess.run(["git","config","user.name","mvw-bot"], check=True)
@@ -118,23 +112,36 @@ def commit_chart_if_changed():
     if diff.returncode != 0:
         subprocess.run(["git","commit","-m", f"chore(email): update weekly chart {dt.date.today().isoformat()}"], check=True)
         subprocess.run(["git","push"], check=True)
-    return current_sha()
 
-def build_image_url(sha: str) -> str:
-    """Prefer user’s SITE_URL if provided; otherwise use raw.githubusercontent (immediate)."""
+def compute_pages_url() -> str:
+    """Prefer explicit SITE_URL (secret/env). Otherwise derive:
+       https://<owner>.github.io/<repo>
+    """
     if SITE_URL:
-        return f"{SITE_URL}/images/{CHART_PATH.name}"
+        return SITE_URL
     if "/" in GITHUB_REPO:
         owner, repo = GITHUB_REPO.split("/", 1)
-        return f"https://raw.githubusercontent.com/{owner}/{repo}/{sha}/images/{CHART_PATH.name}"
+        return f"https://{owner}.github.io/{repo}"
     return ""
 
+def build_image_urls() -> list[str]:
+    urls = []
+    pages = compute_pages_url()
+    if pages:
+        urls.append(f"{pages}/images/{CHART_PATH.name}")
+    # raw.githubusercontent fallback (public repos only)
+    if "/" in GITHUB_REPO:
+        owner, repo = GITHUB_REPO.split("/", 1)
+        # Use the current HEAD ref “main” path; raw with branch works and is stable
+        urls.append(f"https://raw.githubusercontent.com/{owner}/{repo}/main/images/{CHART_PATH.name}")
+    return [u for u in urls if u]
+
 # ---------- HTML ----------
-def html_report(rows, image_url: str | None, attach_note: bool) -> str:
+def html_report(rows, image_urls: list[str]) -> str:
     latest = rows[-1]
     leader, ahead = leader_and_ahead(latest)
 
-    # Δ vs 7d: calendar-based — compare to the most recent row whose date <= (latest_date - 7 days)
+    # Δ vs 7d (calendar-based: latest vs most recent row <= latest_date - 7 days)
     latest_date = dt.date.fromisoformat(latest["date"])
     threshold = latest_date - dt.timedelta(days=7)
     idx_old = 0
@@ -163,12 +170,19 @@ def html_report(rows, image_url: str | None, attach_note: bool) -> str:
             f"</td></tr>"
         )
 
-    img_html = (f"<img src='{image_url}' alt='Marty vs Winslow chart' "
-                f"style='width:100%;max-width:1000px;border-radius:12px;display:block;margin:8px 0'/>") if image_url else ""
-    attach_hint = "<div style='color:#6b7280;font-size:12px'>Chart attached as PNG.</div>" if attach_note else ""
+    # Always include the image tag; many clients block remote images by default,
+    # but the PNG is also attached so users can still view it.
+    img_tags = "\n".join(
+        [f"<img src='{u}' alt='Marty vs Winslow chart' style='width:100%;max-width:1000px;border-radius:12px;display:block;margin:8px 0' />"
+         for u in image_urls[:1]]  # use first best URL
+    )
+    attach_hint = "<div style='color:#6b7280;font-size:12px'>Chart attached as PNG.</div>"
 
-    link_html = (f"<p style='margin:8px 0 0'><a href='{SITE_URL or '#'}' "
-                 f"style='color:#2563eb;text-decoration:none'>Open the live dashboard →</a></p>") if SITE_URL else ""
+    link_html = ""
+    pages = compute_pages_url()
+    if pages:
+        link_html = (f"<p style='margin:8px 0 0'><a href='{pages}' "
+                     f"style='color:#2563eb;text-decoration:none'>Open the live dashboard →</a></p>")
 
     return f"""<!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b1221;background:#ffffff;margin:0;padding:16px;">
@@ -196,7 +210,7 @@ def html_report(rows, image_url: str | None, attach_note: bool) -> str:
       <div style="color:#6b7280;font-size:12px;margin-top:4px">% ahead = (leader − loser) / loser</div>
     </div>
 
-    {img_html}
+    {img_tags}
     {attach_hint}
 
     <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;margin-top:12px;">
@@ -226,11 +240,9 @@ def html_report(rows, image_url: str | None, attach_note: bool) -> str:
 </body></html>"""
 
 def send_email_with_brevo(html, attachments):
-    if not BREVO_API_KEY:
-        raise RuntimeError("BREVO_API_KEY missing")
+    if not BREVO_API_KEY: raise RuntimeError("BREVO_API_KEY missing")
     to_list = parse_recipients(TO_EMAILS_RAW)
-    if not to_list:
-        raise RuntimeError("REPORT_TO_EMAIL(S) missing")
+    if not to_list: raise RuntimeError("REPORT_TO_EMAIL(S) missing")
 
     payload = {
         "sender": {"email": FROM_EMAIL or "no-reply@example.com", "name": "Marty vs Winslow"},
@@ -252,25 +264,25 @@ def send_email_with_brevo(html, attachments):
     print("Brevo accepted:", r.text[:300])
 
 def main():
+    # Load history
     with open(HISTORY_PATH, "r", encoding="utf-8") as f:
         history = json.load(f)
     rows = clean_rows(history)
-    if not rows:
-        raise SystemExit("No data rows")
+    if not rows: raise SystemExit("No data rows")
 
-    # Generate chart
+    # Make chart PNG & commit (so Pages/raw can serve it)
     make_chart_png(rows, CHART_PATH)
-    sha = commit_chart_if_changed()
+    commit_chart_if_changed()
 
-    # Build image URL (Pages if provided, else raw.githubusercontent)
-    image_url = build_image_url(sha)
+    # Build one or more public URLs
+    image_urls = build_image_urls()
 
-    # Attach PNG regardless of remote image policy
+    # Attach PNG (works even if remote images blocked)
     with open(CHART_PATH, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("ascii")
     attachments = [{"name": CHART_PATH.name, "content": b64}]
 
-    html = html_report(rows, image_url or None, attach_note=not bool(image_url))
+    html = html_report(rows, image_urls)
     send_email_with_brevo(html, attachments)
 
 if __name__ == "__main__":
