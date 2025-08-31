@@ -10,7 +10,7 @@ jobs:
   email:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write   # needed to commit the chart PNG to Pages
     steps:
       - uses: actions/checkout@v4
 
@@ -20,41 +20,23 @@ jobs:
           python-version: '3.11'
 
       - name: Install deps
-        run: pip install requests
-
-      - name: Debug Brevo secret presence
-        env:
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
         run: |
-          python - <<'PY'
-          import os
-          key = os.environ.get('BREVO_API_KEY','')
-          print('Has BREVO_API_KEY?', bool(key))
-          print('Key length:', len(key))
-          print('Looks like Brevo (xkeysib-)?', key.startswith('xkeysib-'))
-          PY
+          python -m pip install --upgrade pip
+          pip install requests matplotlib numpy
 
-      - name: Validate Brevo key against /v3/account
+      # 1) Generate the chart PNG (and commit it if changed)
+      - name: Generate weekly chart
         env:
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-        run: |
-          python - <<'PY'
-          import os, requests
-          r = requests.get(
-              'https://api.brevo.com/v3/account',
-              headers={'api-key': os.environ['BREVO_API_KEY'], 'accept':'application/json'},
-              timeout=20
-          )
-          print('Status:', r.status_code)
-          print('Body:', r.text[:300])
-          r.raise_for_status()
-          PY
+          SITE_URL: ${{ secrets.SITE_URL }}          # e.g. https://<user>.github.io/<repo>
+        run: python scripts/email_report.py --make-chart-only
 
+      # email sending needs API key and recipients
       - name: Send weekly report via Brevo
         env:
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-          REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
           REPORT_FROM_EMAIL: ${{ secrets.REPORT_FROM_EMAIL }}
-          # Optional: set to your published GitHub Pages URL
+          REPORT_TO_EMAILS: ${{ secrets.REPORT_TO_EMAILS }}   # comma/newline separated list
+          # fallback single recipient if you prefer:
+          REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
           SITE_URL: ${{ secrets.SITE_URL }}
-        run: python scripts/email_report.py
+        run: python scripts/email_report.py --send-email

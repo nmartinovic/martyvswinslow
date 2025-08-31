@@ -1,74 +1,153 @@
 # scripts/email_report.py
-import json, os, datetime as dt, math, sys
-import requests
+import base64
+import datetime as dt
+import io
+import json
+import math
+import os
+import sys
+import subprocess
 from pathlib import Path
 
-# --- Config via env ---
-BREVO_API_KEY    = os.environ["BREVO_API_KEY"]
-TO_EMAIL         = os.environ["REPORT_TO_EMAIL"]
-FROM_EMAIL       = os.environ["REPORT_FROM_EMAIL"]   # must be a verified Brevo sender
-SITE_URL         = os.environ.get("SITE_URL", "")    # e.g. https://<user>.github.io/<repo>
+import requests
+
+# --- Optional chart libs (only needed for --make-chart-only / --all) ---
+try:
+    import numpy as np
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except Exception:
+    # We'll only fail if chart is requested
+    plt = None
+    np = None
 
 ROOT = Path(__file__).resolve().parents[1]
 HISTORY_PATH = ROOT / "data" / "history.json"
+CHART_PATH = ROOT / "images" / "weekly-chart.png"
 
-def pct_str(x):
-    return f"{x*100:.2f}%"
+# ----- ENV -----
+BREVO_API_KEY  = os.environ.get("BREVO_API_KEY", "")
+FROM_EMAIL     = os.environ.get("REPORT_FROM_EMAIL", "")
+SITE_URL       = os.environ.get("SITE_URL", "").rstrip("/")
+# Recipients: support comma/space/newline-separated in REPORT_TO_EMAILS,
+# or single REPORT_TO_EMAIL for backward compatibility.
+TO_EMAILS_RAW  = os.environ.get("REPORT_TO_EMAILS", os.environ.get("REPORT_TO_EMAIL", "")).strip()
 
-def money_str(n):
+# ----- Helpers -----
+def days_left(end_date=dt.date(2030,5,1)) -> int:
+    return max(0, (end_date - dt.date.today()).days)
+
+def money_str(n: float) -> str:
     n = float(n)
     if n >= 1e12: return f"{n/1e12:.2f}T"
     if n >= 1e9:  return f"{n/1e9:.2f}B"
     if n >= 1e6:  return f"{n/1e6:.2f}M"
     return f"{n:,.0f}"
 
-def leader_and_ahead(bp, coin):
-    bp = float(bp); coin = float(coin)
-    if coin > bp:    return "Marty (COIN)", (coin - bp)/bp
-    if bp > coin:    return "Winslow (BP)", (bp - coin)/coin
-    return "Tied", 0.0
+def pct_str(x: float) -> str:
+    return f"{x*100:.2f}%"
 
-def days_left(end_date=dt.date(2030,5,1)):
-    today = dt.date.today()
-    return max(0, (end_date - today).days)
-
-def build_rows(history):
-    # keep only valid rows & sort by date asc
-    rows = [r for r in history if r.get("date") and r.get("bpMarketCap") and r.get("coinMarketCap")]
+def clean_rows(history):
+    rows = [
+        r for r in history
+        if r and r.get("date") and r.get("bpMarketCap") is not None and r.get("coinMarketCap") is not None
+    ]
     rows.sort(key=lambda r: r["date"])
     return rows
 
-def last_n(rows, n):
-    return rows[-n:] if len(rows) >= n else rows
+def signed_pct(row) -> float:
+    """Signed percentage advantage (site rule):
+       + = Marty (COIN ahead vs BP, denom=BP)
+       - = Winslow (BP ahead vs COIN, denom=COIN)
+    """
+    bp = float(row["bpMarketCap"])
+    coin = float(row["coinMarketCap"])
+    diff = coin - bp
+    if diff == 0 or bp == 0 or coin == 0:
+        return 0.0
+    denom = bp if diff >= 0 else coin
+    return (diff / denom)
 
-def html_report(rows):
-    if not rows:
-        return "<p>No data yet.</p>"
+def leader_and_ahead(row):
+    bp = float(row["bpMarketCap"])
+    coin = float(row["coinMarketCap"])
+    if coin > bp: return "Marty (COIN)", (coin - bp)/bp
+    if bp > coin: return "Winslow (BP)", (bp - coin)/coin
+    return "Tied", 0.0
 
+def parse_recipients(raw: str):
+    # Accept commas, spaces, or newlines
+    parts = [p.strip() for p in raw.replace("\n", ",").replace(" ", ",").split(",") if p.strip()]
+    # Deduplicate while preserving order
+    seen, out = set(), []
+    for p in parts:
+        if p.lower() not in seen:
+            out.append({"email": p})
+            seen.add(p.lower())
+    return out
+
+# ----- Chart generation -----
+def make_chart_png(rows, save_path: Path):
+    if plt is None or np is None:
+        raise RuntimeError("matplotlib/numpy not available in environment")
+
+    xs = [dt.datetime.fromisoformat(r["date"]).date() for r in rows]
+    ys_signed = [signed_pct(r) * 100.0 for r in rows]  # percent
+
+    # Symmetric bounds around 0
+    max_abs = max(5.0, math.ceil(max(abs(y) for y in ys_signed) * 1.1))
+
+    # Build masked arrays for positive (Marty) / negative (Winslow)
+    import numpy.ma as ma
+    y = np.array(ys_signed, dtype=float)
+    x = np.array(xs)
+
+    y_pos = ma.masked_less(y, 0.0)
+    y_neg = ma.masked_greater(y, 0.0)
+
+    # Figure
+    fig, ax = plt.subplots(figsize=(11, 4))  # ~1100x400
+    ax.axhline(0, color="#cbd5e1", linestyle=(0,(4,3)), linewidth=2)
+
+    # Fills
+    ax.fill_between(x, 0, y_pos, where=~y_pos.mask, alpha=0.15, color="#184FF8", step=None)
+    ax.fill_between(x, 0, y_neg, where=~y_neg.mask, alpha=0.15, color="#007F01", step=None)
+
+    # Lines
+    ax.plot(x, y_pos, color="#184FF8", linewidth=2)
+    ax.plot(x, y_neg, color="#007F01", linewidth=2)
+
+    ax.set_ylim(-max_abs, max_abs)
+    ax.set_ylabel("% ahead")
+    ax.set_xlabel("")
+    ax.grid(True, axis="y", linestyle=":", color="#e5e7eb")
+    for spine in ("top","right","left","bottom"): ax.spines[spine].set_visible(False)
+    fig.tight_layout()
+
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, dpi=160)
+    plt.close(fig)
+
+# ----- HTML -----
+def html_report(rows, include_image_url: str | None, attach_note: bool) -> str:
     latest = rows[-1]
-    bp = latest["bpMarketCap"]; coin = latest["coinMarketCap"]
-    leader, ahead = leader_and_ahead(bp, coin)
+    leader, ahead = leader_and_ahead(latest)
 
-    # 7-day slice (or less if not available)
-    slice7 = last_n(rows, 7)
-    # simple textual trend (+/- vs 7 days ago)
-    trend_txt = ""
-    if len(slice7) >= 2:
-        old_leader, old_ahead = leader_and_ahead(slice7[0]["bpMarketCap"], slice7[0]["coinMarketCap"])
-        delta = ahead - old_ahead if leader != "Tied" else 0
-        trend_txt = f" (Δ vs 7d: {pct_str(delta)})"
+    # 7-day delta: signed percent today minus signed percent 7-days-ago (or earliest available)
+    signed_values = [signed_pct(r) for r in rows]
+    idx_old = max(0, len(rows)-7)  # seven rows back (not calendar days)
+    delta7 = signed_values[-1] - signed_values[idx_old]
 
-    blue = "#184FF8"   # Marty
-    green = "#007F01"  # Winslow
+    blue, green = "#184FF8", "#007F01"
+    leader_color = blue if leader.startswith("Marty") else green
 
-    def leader_color(name):
-        return blue if name.startswith("Marty") else green
-
-    # Build table rows (newest first)
+    # table: last 7 (newest first)
+    tail = rows[-7:] if len(rows) >= 7 else rows[:]
     tr_html = []
-    for r in reversed(slice7):
-        nm, pct = leader_and_ahead(r["bpMarketCap"], r["coinMarketCap"])
-        pill_color = leader_color(nm)
+    for r in reversed(tail):
+        nm, pct = leader_and_ahead(r)
+        pill = blue if nm.startswith("Marty") else green
         tr_html.append(
             f"<tr>"
             f"<td style='padding:8px;border-bottom:1px solid #e5e7eb'>{r['date']}</td>"
@@ -76,105 +155,148 @@ def html_report(rows):
             f"<td style='padding:8px;border-bottom:1px solid #e5e7eb'>{money_str(r['coinMarketCap'])}</td>"
             f"<td style='padding:8px;border-bottom:1px solid #e5e7eb'>{nm}</td>"
             f"<td style='padding:8px;border-bottom:1px solid #e5e7eb'>"
-            f"<span style='border:1px solid {pill_color};border-radius:999px;padding:3px 8px;color:{pill_color};font-size:12px'>{pct_str(pct)}</span>"
+            f"<span style='border:1px solid {pill};border-radius:999px;padding:3px 8px;color:{pill};font-size:12px'>{pct_str(pct)}</span>"
             f"</td></tr>"
         )
 
-    link_html = f"<p style='margin:12px 0 0'><a href='{SITE_URL}' style='color:#2563eb;text-decoration:none'>Open the live dashboard →</a></p>" if SITE_URL else ""
+    img_html = (
+        f"<img src='{include_image_url}' alt='Marty vs Winslow chart' "
+        f"style='width:100%;max-width:1000px;border-radius:12px;display:block;margin:8px 0'/>"
+        if include_image_url else ""
+    )
+    attach_hint = "<div style='color:#6b7280;font-size:12px'>Chart attached as PNG.</div>" if attach_note else ""
 
-    html = f"""
-<!doctype html>
-<html>
-  <body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b1221;background:#ffffff;margin:0;padding:16px;">
-    <div style="max-width:720px;margin:0 auto;">
-      <h2 style="margin:0 0 4px 0;">Marty vs Winslow — Weekly Update</h2>
-      <div style="color:#6b7280;margin-bottom:12px;">COIN vs BP market capitalization • Ends May 1, 2030</div>
+    link_html = (f"<p style='margin:8px 0 0'><a href='{SITE_URL}' "
+                 f"style='color:#2563eb;text-decoration:none'>Open the live dashboard →</a></p>") if SITE_URL else ""
 
-      <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
-        <table role="presentation" style="width:100%;border-collapse:collapse">
-          <tr>
-            <td style="padding:6px 0;width:33%;">
-              <div style="color:#6b7280;font-size:13px;">Days left</div>
-              <div style="font-weight:700;font-size:22px;">{days_left()}</div>
-            </td>
-            <td style="padding:6px 0;width:33%;">
-              <div style="color:#6b7280;font-size:13px;">Currently winning</div>
-              <div style="font-weight:800;font-size:22px;color:{leader_color(leader)}">{leader}</div>
-            </td>
-            <td style="padding:6px 0;width:33%;">
-              <div style="color:#6b7280;font-size:13px;">% ahead</div>
-              <div style="font-weight:700;font-size:22px;">{pct_str(ahead)}{trend_txt}</div>
-            </td>
-          </tr>
-        </table>
-        <div style="color:#6b7280;font-size:12px;margin-top:4px">% ahead = (leader − loser) / loser</div>
-      </div>
+    html = f"""<!doctype html>
+<html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b1221;background:#ffffff;margin:0;padding:16px;">
+  <div style="max-width:720px;margin:0 auto;">
+    <h2 style="margin:0 0 4px 0;">Marty vs Winslow — Weekly Update</h2>
+    <div style="color:#6b7280;margin-bottom:12px;">COIN vs BP market capitalization • Ends May 1, 2030</div>
 
-      <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-          <strong>Last 7 entries</strong>
-          <span style="color:#6b7280;font-size:12px;">Updated {latest['date']}</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr>
-              <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">Date</th>
-              <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">BP Market Cap</th>
-              <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">COIN Market Cap</th>
-              <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">Leader</th>
-              <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">% Ahead</th>
-            </tr>
-          </thead>
-          <tbody>
-            {''.join(tr_html)}
-          </tbody>
-        </table>
-        {link_html}
-      </div>
-
-      <div style="color:#6b7280;font-size:12px;margin-top:12px;">
-        This email was sent automatically by GitHub Actions using Brevo.
-      </div>
+    <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+      <table role="presentation" style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="padding:6px 0;width:33%;">
+            <div style="color:#6b7280;font-size:13px;">Days left</div>
+            <div style="font-weight:700;font-size:22px;">{days_left()}</div>
+          </td>
+          <td style="padding:6px 0;width:33%;">
+            <div style="color:#6b7280;font-size:13px;">Currently winning</div>
+            <div style="font-weight:800;font-size:22px;color:{leader_color}">{leader}</div>
+          </td>
+          <td style="padding:6px 0;width:33%;">
+            <div style="color:#6b7280;font-size:13px;">% ahead</div>
+            <div style="font-weight:700;font-size:22px;">{pct_str(ahead)} <span style="color:#6b7280;font-size:12px">(Δ vs 7d: {pct_str(delta7)})</span></div>
+          </td>
+        </tr>
+      </table>
+      <div style="color:#6b7280;font-size:12px;margin-top:4px">% ahead = (leader − loser) / loser</div>
     </div>
-  </body>
-</html>
-"""
+
+    {img_html}
+    {attach_hint}
+
+    <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+        <strong>Last 7 entries</strong>
+        <span style="color:#6b7280;font-size:12px;">Updated {rows[-1]['date']}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">Date</th>
+            <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">BP Market Cap</th>
+            <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">COIN Market Cap</th>
+            <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">Leader</th>
+            <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;">% Ahead</th>
+          </tr>
+        </thead>
+        <tbody>
+          {''.join(tr_html)}
+        </tbody>
+      </table>
+      {link_html}
+    </div>
+
+    <div style="color:#6b7280;font-size:12px;margin-top:12px;">This email was sent automatically by GitHub Actions using Brevo.</div>
+  </div>
+</body></html>"""
     return html
 
-def send_email(html):
-    today = dt.date.today().isoformat()
+def commit_chart_if_changed():
+    # commit/push from Actions runner (requires contents: write)
+    subprocess.run(["git", "config", "user.name", "mvw-bot"], check=True)
+    subprocess.run(["git", "config", "user.email", "actions@users.noreply.github.com"], check=True)
+    subprocess.run(["git", "add", str(CHART_PATH)], check=True)
+    # Only commit if there are staged changes
+    diff = subprocess.run(["git", "diff", "--cached", "--quiet"])
+    if diff.returncode != 0:
+        subprocess.run(["git", "commit", "-m", f"chore(email): update weekly chart {dt.date.today().isoformat()}"], check=True)
+        subprocess.run(["git", "push"], check=True)
+
+def send_email_with_brevo(html, attachments: list[dict]):
+    if not BREVO_API_KEY:
+        raise RuntimeError("BREVO_API_KEY missing")
+    to_list = parse_recipients(TO_EMAILS_RAW)
+    if not to_list:
+        raise RuntimeError("REPORT_TO_EMAIL(S) missing")
+
     payload = {
-        "sender": {"email": FROM_EMAIL, "name": "Marty vs Winslow"},
-        "to": [{"email": TO_EMAIL}],
-        "subject": f"Marty vs Winslow — Weekly Update ({today})",
+        "sender": {"email": FROM_EMAIL or "no-reply@example.com", "name": "Marty vs Winslow"},
+        "to": to_list,
+        "subject": f"Marty vs Winslow — Weekly Update ({dt.date.today().isoformat()})",
         "htmlContent": html
     }
+    if attachments:
+        payload["attachment"] = attachments  # [{"name":"weekly-chart.png","content":"<base64>"}]
+
     r = requests.post(
         "https://api.brevo.com/v3/smtp/email",
-        headers={
-            "accept": "application/json",
-            "content-type": "application/json",
-            "api-key": BREVO_API_KEY
-        },
-        json=payload, timeout=30
+        headers={"accept":"application/json","content-type":"application/json","api-key":BREVO_API_KEY},
+        json=payload, timeout=45
     )
-    if r.status_code != 200 and r.status_code != 201:
-        # Surface Brevo’s error text for easier debugging
+    if r.status_code not in (200, 201, 202):
         print("Brevo error:", r.status_code, r.text)
         r.raise_for_status()
-    print("Brevo accepted message:", r.json())
-
+    print("Brevo accepted message:", r.text[:300])
 
 def main():
     if not HISTORY_PATH.exists():
         print("No history.json found at", HISTORY_PATH, file=sys.stderr)
         sys.exit(1)
+
     with open(HISTORY_PATH, "r", encoding="utf-8") as f:
         history = json.load(f)
+    rows = clean_rows(history)
+    if not rows:
+        raise SystemExit("No data rows")
 
-    rows = build_rows(history)
-    html = html_report(rows)
-    send_email(html)
+    # Determine mode
+    args = sys.argv[1:]
+    make_chart = ("--make-chart-only" in args) or ("--all" in args) or (not args)
+    send_mail = ("--send-email" in args) or ("--all" in args) or (not args)
+
+    include_url = None
+    attachments = []
+
+    if make_chart:
+        make_chart_png(rows, CHART_PATH)
+        # If SITE_URL given, publish chart to Pages (commit) and include URL in email
+        if SITE_URL:
+            commit_chart_if_changed()
+            include_url = f"{SITE_URL}/images/{CHART_PATH.name}"
+
+        # Always attach PNG as well (for clients blocking remote images)
+        with open(CHART_PATH, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("ascii")
+        attachments = [{"name": CHART_PATH.name, "content": b64}]
+
+    html = html_report(rows, include_url, attach_note=(not include_url))
+
+    if send_mail:
+        send_email_with_brevo(html, attachments)
 
 if __name__ == "__main__":
     main()
