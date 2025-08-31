@@ -22,31 +22,33 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-    - name: Debug Brevo secret presence
-      env:
-        BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-      run: |
-        python - << 'PY'
-        import os
-        key = os.environ.get('BREVO_API_KEY','')
-        print('Has BREVO_API_KEY?', bool(key))
-        print('Key length:', len(key))
-        print('Looks like Brevo (xkeysib-)?', key.startswith('xkeysib-'))
-        PY
+      - name: Debug Brevo secret presence
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          key = os.environ.get('BREVO_API_KEY','')
+          print('Has BREVO_API_KEY?', bool(key))
+          print('Key length:', len(key))
+          print('Looks like Brevo (xkeysib-)?', key.startswith('xkeysib-'))
+          PY
 
-    - name: Validate Brevo key against /v3/account
-      env:
-        BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-      run: |
-        python - << 'PY'
-        import os, requests
-        r = requests.get('https://api.brevo.com/v3/account',
-                        headers={'api-key': os.environ['BREVO_API_KEY'], 'accept':'application/json'}, timeout=20)
-        print('Status:', r.status_code)
-        print('Body:', r.text[:300])
-        r.raise_for_status()
-        PY
-
+      - name: Validate Brevo key against /v3/account
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os, requests
+          r = requests.get(
+              'https://api.brevo.com/v3/account',
+              headers={'api-key': os.environ['BREVO_API_KEY'], 'accept':'application/json'},
+              timeout=20
+          )
+          print('Status:', r.status_code)
+          print('Body:', r.text[:300])
+          r.raise_for_status()
+          PY
 
       - name: Send weekly report via Brevo
         env:
