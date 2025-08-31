@@ -1,5 +1,9 @@
 # scripts/email_report.py
-import base64, datetime as dt, io, json, math, os, sys, subprocess
+# Sends the Wednesday email (with inline chart), no attachments.
+# Also regenerates/commits images/weekly-chart.png so GitHub Pages (or raw.githubusercontent) can serve it.
+
+import datetime as dt
+import json, math, os, sys, subprocess
 from pathlib import Path
 import requests
 
@@ -38,15 +42,15 @@ def pct_str(x: float) -> str:
     return f"{x*100:.2f}%"
 
 def clean_rows(history):
-    rows = [
-        r for r in history
-        if r and r.get("date") and r.get("bpMarketCap") is not None and r.get("coinMarketCap") is not None
-    ]
+    rows = [r for r in history if r and r.get("date") and r.get("bpMarketCap") is not None and r.get("coinMarketCap") is not None]
     rows.sort(key=lambda r: r["date"])
     return rows
 
 def signed_pct(row) -> float:
-    """Signed advantage (%): + = Marty (COIN vs BP denom=BP); − = Winslow (BP vs COIN denom=COIN)."""
+    """Signed advantage (%):
+       + = Marty (COIN vs BP denom=BP)
+       − = Winslow (BP vs COIN denom=COIN)
+    """
     bp = float(row["bpMarketCap"]); coin = float(row["coinMarketCap"])
     diff = coin - bp
     if diff == 0 or bp == 0 or coin == 0: return 0.0
@@ -63,16 +67,17 @@ def parse_recipients(raw: str):
     parts = [p.strip() for p in raw.replace("\n", ",").replace(" ", ",").split(",") if p.strip()]
     seen, out = set(), []
     for p in parts:
-        low = p.lower()
-        if low not in seen:
+        lp = p.lower()
+        if lp not in seen:
             out.append({"email": p})
-            seen.add(low)
+            seen.add(lp)
     return out
 
 # ---------- Chart ----------
 def make_chart_png(rows, save_path: Path):
     if plt is None or np is None:
         raise RuntimeError("matplotlib/numpy not available in environment")
+
     xs = [dt.date.fromisoformat(r["date"]) for r in rows]
     ys = [signed_pct(r) * 100.0 for r in rows]
     max_abs = max(5.0, math.ceil(max(abs(v) for v in ys) * 1.1))
@@ -81,8 +86,8 @@ def make_chart_png(rows, save_path: Path):
     y = np.array(ys, dtype=float)
     x = np.array(xs)
 
-    y_pos = ma.masked_less(y, 0.0)     # Marty
-    y_neg = ma.masked_greater(y, 0.0)  # Winslow
+    y_pos = ma.masked_less(y, 0.0)     # Marty (blue)
+    y_neg = ma.masked_greater(y, 0.0)  # Winslow (green)
 
     fig, ax = plt.subplots(figsize=(11,4))
     ax.axhline(0, color="#cbd5e1", linestyle=(0,(4,3)), linewidth=2)
@@ -101,12 +106,12 @@ def make_chart_png(rows, save_path: Path):
     fig.savefig(save_path, dpi=160)
     plt.close(fig)
 
-def git(*args, check=True):
-    return subprocess.run(list(args), check=check, capture_output=True, text=True)
-
-def commit_chart_if_changed():
+def git_config():
     subprocess.run(["git","config","user.name","mvw-bot"], check=True)
     subprocess.run(["git","config","user.email","actions@users.noreply.github.com"], check=True)
+
+def commit_chart_if_changed():
+    git_config()
     subprocess.run(["git","add", str(CHART_PATH)], check=True)
     diff = subprocess.run(["git","diff","--cached","--quiet"])
     if diff.returncode != 0:
@@ -114,30 +119,22 @@ def commit_chart_if_changed():
         subprocess.run(["git","push"], check=True)
 
 def compute_pages_url() -> str:
-    """Prefer explicit SITE_URL (secret/env). Otherwise derive:
-       https://<owner>.github.io/<repo>
+    """If SITE_URL not set, derive GitHub Pages URL:
+       - project pages: https://<owner>.github.io/<repo>
+       - user site repo (owner.github.io): https://<owner>.github.io
     """
     if SITE_URL:
         return SITE_URL
     if "/" in GITHUB_REPO:
         owner, repo = GITHUB_REPO.split("/", 1)
-        return f"https://{owner}.github.io/{repo}"
+        base = f"https://{owner}.github.io"
+        if repo.lower() == f"{owner.lower()}.github.io":
+            return base
+        return f"{base}/{repo}"
     return ""
 
-def build_image_urls() -> list[str]:
-    urls = []
-    pages = compute_pages_url()
-    if pages:
-        urls.append(f"{pages}/images/{CHART_PATH.name}")
-    # raw.githubusercontent fallback (public repos only)
-    if "/" in GITHUB_REPO:
-        owner, repo = GITHUB_REPO.split("/", 1)
-        # Use the current HEAD ref “main” path; raw with branch works and is stable
-        urls.append(f"https://raw.githubusercontent.com/{owner}/{repo}/main/images/{CHART_PATH.name}")
-    return [u for u in urls if u]
-
 # ---------- HTML ----------
-def html_report(rows, image_urls: list[str]) -> str:
+def html_report(rows, image_url: str) -> str:
     latest = rows[-1]
     leader, ahead = leader_and_ahead(latest)
 
@@ -170,19 +167,11 @@ def html_report(rows, image_urls: list[str]) -> str:
             f"</td></tr>"
         )
 
-    # Always include the image tag; many clients block remote images by default,
-    # but the PNG is also attached so users can still view it.
-    img_tags = "\n".join(
-        [f"<img src='{u}' alt='Marty vs Winslow chart' style='width:100%;max-width:1000px;border-radius:12px;display:block;margin:8px 0' />"
-         for u in image_urls[:1]]  # use first best URL
-    )
-    attach_hint = "<div style='color:#6b7280;font-size:12px'>Chart attached as PNG.</div>"
-
-    link_html = ""
     pages = compute_pages_url()
-    if pages:
-        link_html = (f"<p style='margin:8px 0 0'><a href='{pages}' "
-                     f"style='color:#2563eb;text-decoration:none'>Open the live dashboard →</a></p>")
+    link_html = (f"<p style='margin:8px 0 0'><a href='{pages}' "
+                 f"style='color:#2563eb;text-decoration:none'>Open the live dashboard →</a></p>") if pages else ""
+
+    img_tag = f"<img src='{pages}/images/{CHART_PATH.name}' alt='Marty vs Winslow chart' style='width:100%;max-width:1000px;border-radius:12px;display:block;margin:8px 0'/>" if pages else ""
 
     return f"""<!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b1221;background:#ffffff;margin:0;padding:16px;">
@@ -210,8 +199,7 @@ def html_report(rows, image_urls: list[str]) -> str:
       <div style="color:#6b7280;font-size:12px;margin-top:4px">% ahead = (leader − loser) / loser</div>
     </div>
 
-    {img_tags}
-    {attach_hint}
+    {img_tag}
 
     <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;margin-top:12px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
@@ -239,7 +227,7 @@ def html_report(rows, image_urls: list[str]) -> str:
   </div>
 </body></html>"""
 
-def send_email_with_brevo(html, attachments):
+def send_email_with_brevo(html):
     if not BREVO_API_KEY: raise RuntimeError("BREVO_API_KEY missing")
     to_list = parse_recipients(TO_EMAILS_RAW)
     if not to_list: raise RuntimeError("REPORT_TO_EMAIL(S) missing")
@@ -250,8 +238,6 @@ def send_email_with_brevo(html, attachments):
         "subject": f"Marty vs Winslow — Weekly Update ({dt.date.today().isoformat()})",
         "htmlContent": html
     }
-    if attachments:
-        payload["attachment"] = attachments  # [{"name":"weekly-chart.png","content":"<base64>"}]
 
     r = requests.post(
         "https://api.brevo.com/v3/smtp/email",
@@ -264,26 +250,19 @@ def send_email_with_brevo(html, attachments):
     print("Brevo accepted:", r.text[:300])
 
 def main():
-    # Load history
     with open(HISTORY_PATH, "r", encoding="utf-8") as f:
         history = json.load(f)
     rows = clean_rows(history)
     if not rows: raise SystemExit("No data rows")
 
-    # Make chart PNG & commit (so Pages/raw can serve it)
+    # Generate chart PNG and commit so Pages serves it
     make_chart_png(rows, CHART_PATH)
     commit_chart_if_changed()
 
-    # Build one or more public URLs
-    image_urls = build_image_urls()
+    pages = compute_pages_url()
+    html = html_report(rows, f"{pages}/images/{CHART_PATH.name}" if pages else "")
 
-    # Attach PNG (works even if remote images blocked)
-    with open(CHART_PATH, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode("ascii")
-    attachments = [{"name": CHART_PATH.name, "content": b64}]
-
-    html = html_report(rows, image_urls)
-    send_email_with_brevo(html, attachments)
+    send_email_with_brevo(html)
 
 if __name__ == "__main__":
     main()
