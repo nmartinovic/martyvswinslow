@@ -2,15 +2,14 @@ name: Send weekly email (Brevo)
 
 on:
   schedule:
-    # Wednesdays at 02:00 UTC (after your nightly cap update runs)
-    - cron: '0 2 * * 3'
+    - cron: '0 2 * * 3'   # Wednesdays at 02:00 UTC
   workflow_dispatch:
 
 jobs:
   email:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to commit the chart PNG to Pages
+      contents: write     # commit the chart PNG
     steps:
       - uses: actions/checkout@v4
 
@@ -24,19 +23,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests matplotlib numpy
 
-      # 1) Generate the chart PNG (and commit it if changed)
-      - name: Generate weekly chart
-        env:
-          SITE_URL: ${{ secrets.SITE_URL }}          # e.g. https://<user>.github.io/<repo>
-        run: python scripts/email_report.py --make-chart-only
-
-      # email sending needs API key and recipients
-      - name: Send weekly report via Brevo
+      - name: Generate chart, commit if changed, and send email
         env:
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           REPORT_FROM_EMAIL: ${{ secrets.REPORT_FROM_EMAIL }}
-          REPORT_TO_EMAILS: ${{ secrets.REPORT_TO_EMAILS }}   # comma/newline separated list
-          # fallback single recipient if you prefer:
+          # One or many recipients (comma/newline separated); or use REPORT_TO_EMAIL instead
+          REPORT_TO_EMAILS: ${{ secrets.REPORT_TO_EMAILS }}
           REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
+          # Optional (if you want the img src to use Pages domain instead of raw.githubusercontent)
           SITE_URL: ${{ secrets.SITE_URL }}
-        run: python scripts/email_report.py --send-email
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/email_report.py

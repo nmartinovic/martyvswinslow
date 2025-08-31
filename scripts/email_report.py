@@ -1,24 +1,15 @@
 # scripts/email_report.py
-import base64
-import datetime as dt
-import io
-import json
-import math
-import os
-import sys
-import subprocess
+import base64, datetime as dt, io, json, math, os, sys, subprocess
 from pathlib import Path
-
 import requests
 
-# --- Optional chart libs (only needed for --make-chart-only / --all) ---
+# Optional libs for chart
 try:
     import numpy as np
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 except Exception:
-    # We'll only fail if chart is requested
     plt = None
     np = None
 
@@ -26,15 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 HISTORY_PATH = ROOT / "data" / "history.json"
 CHART_PATH = ROOT / "images" / "weekly-chart.png"
 
-# ----- ENV -----
-BREVO_API_KEY  = os.environ.get("BREVO_API_KEY", "")
-FROM_EMAIL     = os.environ.get("REPORT_FROM_EMAIL", "")
-SITE_URL       = os.environ.get("SITE_URL", "").rstrip("/")
-# Recipients: support comma/space/newline-separated in REPORT_TO_EMAILS,
-# or single REPORT_TO_EMAIL for backward compatibility.
-TO_EMAILS_RAW  = os.environ.get("REPORT_TO_EMAILS", os.environ.get("REPORT_TO_EMAIL", "")).strip()
+# --- ENV ---
+BREVO_API_KEY   = os.environ.get("BREVO_API_KEY", "")
+FROM_EMAIL      = os.environ.get("REPORT_FROM_EMAIL", "")
+TO_EMAILS_RAW   = os.environ.get("REPORT_TO_EMAILS", os.environ.get("REPORT_TO_EMAIL", "")).strip()
+GITHUB_REPO     = os.environ.get("GITHUB_REPOSITORY", "")            # owner/repo
+SITE_URL        = os.environ.get("SITE_URL", "").strip().rstrip("/") # optional Pages URL
 
-# ----- Helpers -----
 def days_left(end_date=dt.date(2030,5,1)) -> int:
     return max(0, (end_date - dt.date.today()).days)
 
@@ -57,17 +46,14 @@ def clean_rows(history):
     return rows
 
 def signed_pct(row) -> float:
-    """Signed percentage advantage (site rule):
-       + = Marty (COIN ahead vs BP, denom=BP)
-       - = Winslow (BP ahead vs COIN, denom=COIN)
-    """
+    """Signed advantage (%): + = Marty (COIN vs BP with denom=BP); − = Winslow (BP vs COIN with denom=COIN)."""
     bp = float(row["bpMarketCap"])
     coin = float(row["coinMarketCap"])
     diff = coin - bp
     if diff == 0 or bp == 0 or coin == 0:
         return 0.0
     denom = bp if diff >= 0 else coin
-    return (diff / denom)
+    return diff / denom
 
 def leader_and_ahead(row):
     bp = float(row["bpMarketCap"])
@@ -77,72 +63,90 @@ def leader_and_ahead(row):
     return "Tied", 0.0
 
 def parse_recipients(raw: str):
-    # Accept commas, spaces, or newlines
     parts = [p.strip() for p in raw.replace("\n", ",").replace(" ", ",").split(",") if p.strip()]
-    # Deduplicate while preserving order
     seen, out = set(), []
     for p in parts:
-        if p.lower() not in seen:
+        low = p.lower()
+        if low not in seen:
             out.append({"email": p})
-            seen.add(p.lower())
+            seen.add(low)
     return out
 
-# ----- Chart generation -----
+# ---------- Chart ----------
 def make_chart_png(rows, save_path: Path):
     if plt is None or np is None:
         raise RuntimeError("matplotlib/numpy not available in environment")
+    xs = [dt.date.fromisoformat(r["date"]) for r in rows]
+    ys = [signed_pct(r) * 100.0 for r in rows]
+    max_abs = max(5.0, math.ceil(max(abs(v) for v in ys) * 1.1))
 
-    xs = [dt.datetime.fromisoformat(r["date"]).date() for r in rows]
-    ys_signed = [signed_pct(r) * 100.0 for r in rows]  # percent
-
-    # Symmetric bounds around 0
-    max_abs = max(5.0, math.ceil(max(abs(y) for y in ys_signed) * 1.1))
-
-    # Build masked arrays for positive (Marty) / negative (Winslow)
     import numpy.ma as ma
-    y = np.array(ys_signed, dtype=float)
+    y = np.array(ys, dtype=float)
     x = np.array(xs)
 
-    y_pos = ma.masked_less(y, 0.0)
-    y_neg = ma.masked_greater(y, 0.0)
+    y_pos = ma.masked_less(y, 0.0)     # Marty
+    y_neg = ma.masked_greater(y, 0.0)  # Winslow
 
-    # Figure
-    fig, ax = plt.subplots(figsize=(11, 4))  # ~1100x400
+    fig, ax = plt.subplots(figsize=(11,4))
     ax.axhline(0, color="#cbd5e1", linestyle=(0,(4,3)), linewidth=2)
-
-    # Fills
-    ax.fill_between(x, 0, y_pos, where=~y_pos.mask, alpha=0.15, color="#184FF8", step=None)
-    ax.fill_between(x, 0, y_neg, where=~y_neg.mask, alpha=0.15, color="#007F01", step=None)
-
-    # Lines
+    ax.fill_between(x, 0, y_pos, where=~y_pos.mask, alpha=0.15, color="#184FF8")
+    ax.fill_between(x, 0, y_neg, where=~y_neg.mask, alpha=0.15, color="#007F01")
     ax.plot(x, y_pos, color="#184FF8", linewidth=2)
     ax.plot(x, y_neg, color="#007F01", linewidth=2)
 
     ax.set_ylim(-max_abs, max_abs)
-    ax.set_ylabel("% ahead")
-    ax.set_xlabel("")
+    ax.set_ylabel("% ahead"); ax.set_xlabel("")
     ax.grid(True, axis="y", linestyle=":", color="#e5e7eb")
-    for spine in ("top","right","left","bottom"): ax.spines[spine].set_visible(False)
+    for sp in ("top","right","left","bottom"): ax.spines[sp].set_visible(False)
     fig.tight_layout()
 
     save_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(save_path, dpi=160)
     plt.close(fig)
 
-# ----- HTML -----
-def html_report(rows, include_image_url: str | None, attach_note: bool) -> str:
+def git_run(*args, check=True):
+    return subprocess.run(list(args), check=check, capture_output=True, text=True)
+
+def current_sha():
+    return git_run("git","rev-parse","HEAD").stdout.strip()
+
+def commit_chart_if_changed():
+    subprocess.run(["git","config","user.name","mvw-bot"], check=True)
+    subprocess.run(["git","config","user.email","actions@users.noreply.github.com"], check=True)
+    subprocess.run(["git","add", str(CHART_PATH)], check=True)
+    diff = subprocess.run(["git","diff","--cached","--quiet"])
+    if diff.returncode != 0:
+        subprocess.run(["git","commit","-m", f"chore(email): update weekly chart {dt.date.today().isoformat()}"], check=True)
+        subprocess.run(["git","push"], check=True)
+    return current_sha()
+
+def build_image_url(sha: str) -> str:
+    """Prefer user’s SITE_URL if provided; otherwise use raw.githubusercontent (immediate)."""
+    if SITE_URL:
+        return f"{SITE_URL}/images/{CHART_PATH.name}"
+    if "/" in GITHUB_REPO:
+        owner, repo = GITHUB_REPO.split("/", 1)
+        return f"https://raw.githubusercontent.com/{owner}/{repo}/{sha}/images/{CHART_PATH.name}"
+    return ""
+
+# ---------- HTML ----------
+def html_report(rows, image_url: str | None, attach_note: bool) -> str:
     latest = rows[-1]
     leader, ahead = leader_and_ahead(latest)
 
-    # 7-day delta: signed percent today minus signed percent 7-days-ago (or earliest available)
-    signed_values = [signed_pct(r) for r in rows]
-    idx_old = max(0, len(rows)-7)  # seven rows back (not calendar days)
-    delta7 = signed_values[-1] - signed_values[idx_old]
+    # Δ vs 7d: calendar-based — compare to the most recent row whose date <= (latest_date - 7 days)
+    latest_date = dt.date.fromisoformat(latest["date"])
+    threshold = latest_date - dt.timedelta(days=7)
+    idx_old = 0
+    for i, r in enumerate(rows):
+        d = dt.date.fromisoformat(r["date"])
+        if d <= threshold:
+            idx_old = i
+    delta7 = signed_pct(latest) - signed_pct(rows[idx_old])
 
     blue, green = "#184FF8", "#007F01"
     leader_color = blue if leader.startswith("Marty") else green
 
-    # table: last 7 (newest first)
     tail = rows[-7:] if len(rows) >= 7 else rows[:]
     tr_html = []
     for r in reversed(tail):
@@ -159,17 +163,14 @@ def html_report(rows, include_image_url: str | None, attach_note: bool) -> str:
             f"</td></tr>"
         )
 
-    img_html = (
-        f"<img src='{include_image_url}' alt='Marty vs Winslow chart' "
-        f"style='width:100%;max-width:1000px;border-radius:12px;display:block;margin:8px 0'/>"
-        if include_image_url else ""
-    )
+    img_html = (f"<img src='{image_url}' alt='Marty vs Winslow chart' "
+                f"style='width:100%;max-width:1000px;border-radius:12px;display:block;margin:8px 0'/>") if image_url else ""
     attach_hint = "<div style='color:#6b7280;font-size:12px'>Chart attached as PNG.</div>" if attach_note else ""
 
-    link_html = (f"<p style='margin:8px 0 0'><a href='{SITE_URL}' "
+    link_html = (f"<p style='margin:8px 0 0'><a href='{SITE_URL or '#'}' "
                  f"style='color:#2563eb;text-decoration:none'>Open the live dashboard →</a></p>") if SITE_URL else ""
 
-    html = f"""<!doctype html>
+    return f"""<!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b1221;background:#ffffff;margin:0;padding:16px;">
   <div style="max-width:720px;margin:0 auto;">
     <h2 style="margin:0 0 4px 0;">Marty vs Winslow — Weekly Update</h2>
@@ -223,20 +224,8 @@ def html_report(rows, include_image_url: str | None, attach_note: bool) -> str:
     <div style="color:#6b7280;font-size:12px;margin-top:12px;">This email was sent automatically by GitHub Actions using Brevo.</div>
   </div>
 </body></html>"""
-    return html
 
-def commit_chart_if_changed():
-    # commit/push from Actions runner (requires contents: write)
-    subprocess.run(["git", "config", "user.name", "mvw-bot"], check=True)
-    subprocess.run(["git", "config", "user.email", "actions@users.noreply.github.com"], check=True)
-    subprocess.run(["git", "add", str(CHART_PATH)], check=True)
-    # Only commit if there are staged changes
-    diff = subprocess.run(["git", "diff", "--cached", "--quiet"])
-    if diff.returncode != 0:
-        subprocess.run(["git", "commit", "-m", f"chore(email): update weekly chart {dt.date.today().isoformat()}"], check=True)
-        subprocess.run(["git", "push"], check=True)
-
-def send_email_with_brevo(html, attachments: list[dict]):
+def send_email_with_brevo(html, attachments):
     if not BREVO_API_KEY:
         raise RuntimeError("BREVO_API_KEY missing")
     to_list = parse_recipients(TO_EMAILS_RAW)
@@ -257,46 +246,32 @@ def send_email_with_brevo(html, attachments: list[dict]):
         headers={"accept":"application/json","content-type":"application/json","api-key":BREVO_API_KEY},
         json=payload, timeout=45
     )
-    if r.status_code not in (200, 201, 202):
+    if r.status_code not in (200,201,202):
         print("Brevo error:", r.status_code, r.text)
         r.raise_for_status()
-    print("Brevo accepted message:", r.text[:300])
+    print("Brevo accepted:", r.text[:300])
 
 def main():
-    if not HISTORY_PATH.exists():
-        print("No history.json found at", HISTORY_PATH, file=sys.stderr)
-        sys.exit(1)
-
     with open(HISTORY_PATH, "r", encoding="utf-8") as f:
         history = json.load(f)
     rows = clean_rows(history)
     if not rows:
         raise SystemExit("No data rows")
 
-    # Determine mode
-    args = sys.argv[1:]
-    make_chart = ("--make-chart-only" in args) or ("--all" in args) or (not args)
-    send_mail = ("--send-email" in args) or ("--all" in args) or (not args)
+    # Generate chart
+    make_chart_png(rows, CHART_PATH)
+    sha = commit_chart_if_changed()
 
-    include_url = None
-    attachments = []
+    # Build image URL (Pages if provided, else raw.githubusercontent)
+    image_url = build_image_url(sha)
 
-    if make_chart:
-        make_chart_png(rows, CHART_PATH)
-        # If SITE_URL given, publish chart to Pages (commit) and include URL in email
-        if SITE_URL:
-            commit_chart_if_changed()
-            include_url = f"{SITE_URL}/images/{CHART_PATH.name}"
+    # Attach PNG regardless of remote image policy
+    with open(CHART_PATH, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+    attachments = [{"name": CHART_PATH.name, "content": b64}]
 
-        # Always attach PNG as well (for clients blocking remote images)
-        with open(CHART_PATH, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("ascii")
-        attachments = [{"name": CHART_PATH.name, "content": b64}]
-
-    html = html_report(rows, include_url, attach_note=(not include_url))
-
-    if send_mail:
-        send_email_with_brevo(html, attachments)
+    html = html_report(rows, image_url or None, attach_note=not bool(image_url))
+    send_email_with_brevo(html, attachments)
 
 if __name__ == "__main__":
     main()
