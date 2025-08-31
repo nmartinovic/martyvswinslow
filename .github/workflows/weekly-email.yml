@@ -1,0 +1,32 @@
+name: Send weekly email (Brevo)
+
+on:
+  schedule:
+    # Wednesdays at 02:00 UTC (after your nightly cap update runs)
+    - cron: '0 2 * * 3'
+  workflow_dispatch:
+
+jobs:
+  email:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Send weekly report via Brevo
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          REPORT_TO_EMAIL: ${{ secrets.REPORT_TO_EMAIL }}
+          REPORT_FROM_EMAIL: ${{ secrets.REPORT_FROM_EMAIL }}
+          # Optional: set to your published GitHub Pages URL
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: python scripts/email_report.py
