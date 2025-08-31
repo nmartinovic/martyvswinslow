@@ -151,11 +151,19 @@ def send_email(html):
     }
     r = requests.post(
         "https://api.brevo.com/v3/smtp/email",
-        headers={"accept":"application/json","content-type":"application/json","api-key":BREVO_API_KEY},
+        headers={
+            "accept": "application/json",
+            "content-type": "application/json",
+            "api-key": BREVO_API_KEY
+        },
         json=payload, timeout=30
     )
-    r.raise_for_status()
+    if r.status_code != 200 and r.status_code != 201:
+        # Surface Brevo’s error text for easier debugging
+        print("Brevo error:", r.status_code, r.text)
+        r.raise_for_status()
     print("Brevo accepted message:", r.json())
+
 
 def main():
     if not HISTORY_PATH.exists():
