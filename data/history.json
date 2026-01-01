@@ -1223,5 +1223,10 @@
     "date": "2025-12-31",
     "bpMarketCap": 89722689734,
     "coinMarketCap": 62452705048
+  },
+  {
+    "date": "2026-01-01",
+    "bpMarketCap": 89671049593,
+    "coinMarketCap": 60980372665
   }
 ]
