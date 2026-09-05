@@ -2453,5 +2453,10 @@
     "date": "2026-09-04",
     "bpMarketCap": 112233421627,
     "coinMarketCap": 50841374257
+  },
+  {
+    "date": "2026-09-05",
+    "bpMarketCap": 112825749174,
+    "coinMarketCap": 48714849302
   }
 ]
